@@ -20,6 +20,16 @@ export default class NewBill {
     const file = this.document.querySelector(`input[data-testid="file"]`).files[0]
     const filePath = e.target.value.split(/\\/g)
     const fileName = filePath[filePath.length-1]
+    
+    // If file format is not .jpg, .jpeg or .png we can't continue
+    if (!['.jpg', '.jpeg', '.png'].some(extension => fileName.endsWith(extension))) {
+      // Reset form field
+      this.document.querySelector(`input[data-testid="file"]`).value = '';
+
+      console.error('Bad file format. Please choose .jpg, .jpeg or .png file.');
+      return;
+    }
+
     const formData = new FormData()
     const email = JSON.parse(localStorage.getItem("user")).email
     formData.append('file', file)
