@@ -1,4 +1,5 @@
 {
   "jest.jestCommandLine": "npm run test --",
-  "jest.rootPath": "src/"
+  "jest.rootPath": "src/",
+  "jest.autoRun": { "watch": false }
 }
