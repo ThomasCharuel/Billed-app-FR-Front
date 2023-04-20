@@ -7,24 +7,48 @@ import '@testing-library/jest-dom'
 import { fireEvent, screen } from "@testing-library/dom"
 import userEvent from '@testing-library/user-event'
 import NewBillUI from "../views/NewBillUI.js"
-import { bills, newBill } from "../fixtures/bills.js"
-import { ROUTES, ROUTES_PATH} from "../constants/routes.js";
+import { newBill } from "../fixtures/bills.js"
+import { ROUTES } from "../constants/routes.js";
 import {localStorageMock} from "../__mocks__/localStorage.js";
 import NewBill from "../containers/NewBill.js"
 import mockStore from "../__mocks__/store"
-import router from "../app/Router.js";
 
 jest.mock("../app/store", () => mockStore)
 
-// describe("Given I am connected as an employee", () => {
-//   describe("When I am on NewBill Page", () => {
-//     test("Then ...", () => {
-//       const html = NewBillUI()
-//       document.body.innerHTML = html
-//       //to-do write assertion
-//     })
-//   })
-// })
+describe("Given I am connected as an employee", () => {
+  describe("When I am on NewBill Page", () => {
+    describe("When I upload a file with the bad format", () => {
+      test("Then the file can't be uploaded", async () => {
+        Object.defineProperty(window, 'localStorage', { value: localStorageMock })
+        window.localStorage.setItem('user', JSON.stringify({ type: 'Employee', email: newBill.email }));
+
+        // we have to mock navigation to test it
+        const onNavigate = (pathname) => { document.body.innerHTML = ROUTES({ pathname }) };
+        
+        document.body.innerHTML = NewBillUI();
+
+        const newBillContainer = new NewBill({
+          document,
+          onNavigate,
+          store: mockStore,
+          localStorage: window.localStorage,
+        });
+
+        const consoleErrorMock = jest.spyOn(console, "error").mockImplementation();
+
+        const inputExpenseFile = screen.getByTestId("file");
+        const file = new File(['bad file format'], newBill.fileName, {type: 'image/svg+xml'})
+        userEvent.upload(inputExpenseFile, file)
+        await new Promise(process.nextTick); // Wait file to be uploaded
+
+        expect(inputExpenseFile.files).toEqual([])
+        expect(console.error.mock.calls[0][0]).toEqual('Bad file format. Please choose .jpg, .jpeg or .png file.')
+
+        consoleErrorMock.mockRestore();
+      })
+    })
+  })
+})
 
 // Test d'intégration POST
 describe("Given I am connected as an employee", () => {
