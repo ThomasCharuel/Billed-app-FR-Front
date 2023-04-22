@@ -5,12 +5,14 @@
 import '@testing-library/jest-dom'
 
 import {screen, waitFor} from "@testing-library/dom"
+import userEvent from '@testing-library/user-event'
 import BillsUI from "../views/BillsUI.js"
 import { bills } from "../fixtures/bills.js"
-import { ROUTES_PATH} from "../constants/routes.js";
+import { ROUTES, ROUTES_PATH} from "../constants/routes.js";
 import {localStorageMock} from "../__mocks__/localStorage.js";
 import mockStore from "../__mocks__/store"
 import router from "../app/Router.js";
+import Bills from '../containers/Bills.js';
 
 jest.mock("../app/store", () => mockStore)
 
@@ -36,6 +38,65 @@ describe("Given I am connected as an employee", () => {
       const antiChrono = (a, b) => ((a < b) ? 1 : -1)
       const datesSorted = [...dates].sort(antiChrono)
       expect(dates).toEqual(datesSorted)
+    })
+    describe("And click on Nouvelle note de frais", () => {
+      test("Then should redirect to new Bill page", async () => {
+        Object.defineProperty(window, 'localStorage', { value: localStorageMock })
+        window.localStorage.setItem('user', JSON.stringify({ type: 'Employee' }));
+
+        // we have to mock navigation to test it
+        const onNavigate = (pathname) => { document.body.innerHTML = ROUTES({ pathname }) };
+        
+        document.body.innerHTML = BillsUI({ data: bills });
+
+        const billsContainer = new Bills({
+          document,
+          onNavigate,
+          store: mockStore,
+          localStorage: window.localStorage,
+        });
+
+        const handleClickNewBill = jest.spyOn(billsContainer, "handleClickNewBill")
+        const newBillButton = screen.getByTestId('btn-new-bill')
+        userEvent.click(newBillButton)
+        //expect(handleClickNewBill).toBeCalled()
+        await new Promise(process.nextTick);
+        expect(screen.getAllByText("Envoyer une note de frais")).toBeTruthy();
+      })
+    })
+    describe("And click on Eye Icon", () => {
+      test("Then modal with file should open", async () => {
+        Object.defineProperty(window, 'localStorage', { value: localStorageMock })
+        window.localStorage.setItem('user', JSON.stringify({ type: 'Employee' }));
+
+        // we have to mock navigation to test it
+        const onNavigate = (pathname) => { document.body.innerHTML = ROUTES({ pathname }) };
+        
+        document.body.innerHTML = BillsUI({ data: bills });
+
+        const billsContainer = new Bills({
+          document,
+          onNavigate,
+          store: mockStore,
+          localStorage: window.localStorage,
+        });
+
+        const eyeIcons = screen.getAllByTestId("icon-eye")
+        
+        // Check that urls are correct
+        bills.map(b => b.fileUrl)
+        expect(eyeIcons.length).toEqual(bills.length)
+        expect(eyeIcons.map(e => e.getAttribute('data-bill-url')).sort())
+          .toEqual(bills.map(b => b.fileUrl).sort())
+
+        // Check that modal opens on click
+        const handleClickEyeIcon = jest.spyOn(billsContainer, "handleClickIconEye")
+
+        window.$.fn.modal = jest.fn()
+
+        eyeIcons.forEach(eyeIcon => userEvent.click(eyeIcon))
+        expect(handleClickEyeIcon).toHaveBeenCalledTimes(eyeIcons.length)
+      })
     })
   })
 })
