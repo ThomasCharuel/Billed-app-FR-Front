@@ -86,9 +86,6 @@ export default class {
   }
 
   handleEditTicket(e, bill, bills) {
-    // Prevent click handler to be called multiple times
-    e.stopImmediatePropagation();
-    
     if (this.counter === undefined || this.id !== bill.id) this.counter = 0
     if (this.id === undefined || this.id !== bill.id) this.id = bill.id
     if (this.counter % 2 === 0) {
@@ -138,8 +135,16 @@ export default class {
     if (this.index === undefined || this.index !== index) this.index = index
     if (this.counter % 2 === 0) {
       $(`#arrow-icon${this.index}`).css({ transform: 'rotate(0deg)'})
+
+      const billsFiltered = filteredBills(bills, getStatus(this.index));
+      
       $(`#status-bills-container${this.index}`)
-        .html(cards(filteredBills(bills, getStatus(this.index))))
+        .html(cards(billsFiltered))
+
+      billsFiltered.forEach(bill => {
+        $(`#open-bill${bill.id}`).click((e) => this.handleEditTicket(e, bill, bills))
+      })
+      
       this.counter ++
     } else {
       $(`#arrow-icon${this.index}`).css({ transform: 'rotate(90deg)'})
@@ -148,12 +153,7 @@ export default class {
       this.counter ++
     }
 
-    bills.forEach(bill => {
-      $(`#open-bill${bill.id}`).click((e) => this.handleEditTicket(e, bill, bills))
-    })
-
     return bills
-
   }
 
   getBillsAllUsers = () => {
