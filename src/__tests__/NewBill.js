@@ -35,16 +35,47 @@ describe("Given I am connected as an employee", () => {
         });
 
         const consoleErrorMock = jest.spyOn(console, "error").mockImplementation();
+        const handleChangeFile = jest.spyOn(newBillContainer, 'handleChangeFile').mockImplementation();
 
         const inputExpenseFile = screen.getByTestId("file");
         const file = new File(['bad file format'], newBill.fileName, {type: 'image/svg+xml'})
+        inputExpenseFile.addEventListener("change", handleChangeFile)
         userEvent.upload(inputExpenseFile, file)
-        await new Promise(process.nextTick); // Wait file to be uploaded
-
+        
+        expect(handleChangeFile).toHaveBeenCalled()
         expect(inputExpenseFile.files).toEqual([])
         expect(console.error.mock.calls[0][0]).toEqual('Bad file format. Please choose .jpg, .jpeg or .png file.')
 
         consoleErrorMock.mockRestore();
+      })
+    })
+    describe("When I upload a file with the correct format", () => {
+      test("Then the file is uploaded", async () => {
+        Object.defineProperty(window, 'localStorage', { value: localStorageMock })
+        window.localStorage.setItem('user', JSON.stringify({ type: 'Employee', email: newBill.email }));
+
+        // we have to mock navigation to test it
+        const onNavigate = (pathname) => { document.body.innerHTML = ROUTES({ pathname }) };
+        
+        document.body.innerHTML = NewBillUI();
+
+        const newBillContainer = new NewBill({
+          document,
+          onNavigate,
+          store: mockStore,
+          localStorage: window.localStorage,
+        });
+
+        const handleChangeFile = jest.spyOn(newBillContainer, 'handleChangeFile').mockImplementation();
+        const inputExpenseFile = screen.getByTestId("file");
+        const file = new File(['correct file format'], newBill.fileName, {type: 'image/jpeg'})
+        inputExpenseFile.addEventListener("change", handleChangeFile)
+        userEvent.upload(inputExpenseFile, file)
+        await new Promise(process.nextTick); // Wait file to be uploaded
+
+        expect(handleChangeFile).toHaveBeenCalled()
+        expect(inputExpenseFile.files[0].name).toEqual(newBill.fileName)
+        expect(inputExpenseFile.files[0]).toEqual(file)
       })
     })
   })
