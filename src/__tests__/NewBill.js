@@ -90,6 +90,93 @@ describe("Given I am connected as an employee", () => {
   // we have to mock navigation to test it
   const onNavigate = (pathname) => { document.body.innerHTML = ROUTES({ pathname }) };
 
+  describe("When I am in New Bill Page and upload a file correctly", () => {
+    test("Then a new bill should be created with the file", async () => {
+      document.body.innerHTML = NewBillUI();
+
+      const newBillContainer = new NewBill({
+        document,
+        onNavigate,
+        store: mockStore,
+        localStorage: window.localStorage,
+      });
+
+      const mockStoreCreate = jest.spyOn(mockStore.bills(), 'create');
+      const inputExpenseFile = screen.getByTestId("file");
+      const file = new File(['dummy content'], newBill.fileName, {type: 'image/png'})
+      userEvent.upload(inputExpenseFile, file)
+      await new Promise(process.nextTick); // Wait file to be uploaded
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('email', newBill.email);
+
+      expect(mockStoreCreate).toHaveBeenCalled();
+      expect(mockStoreCreate).toHaveBeenCalledWith({
+        data: formData,
+        headers: {
+          noContentType: true
+        }
+      });
+      expect(newBillContainer.billId).toBe(newBill.id);
+      expect(newBillContainer.fileUrl).toBe(newBill.fileUrl);
+      expect(newBillContainer.fileName).toBe(newBill.fileName);
+      expect(screen.getAllByText("Envoyer une note de frais")).toBeTruthy();
+    })
+    describe("When an error occurs on API", () => {
+      let consoleErrorMock;
+      beforeEach(async () => {
+        document.body.innerHTML = NewBillUI();
+        
+        const newBillContainer = new NewBill({
+          document,
+          onNavigate,
+          store: mockStore,
+          localStorage: window.localStorage,
+        });
+        
+        jest.spyOn(mockStore, "bills")
+        consoleErrorMock = jest.spyOn(console, "error")
+          .mockImplementation();
+      })
+      afterEach(() => {
+        consoleErrorMock.mockRestore()
+      })
+      test("Then submit new Bill to API should print 404 message error and redirect to bills", async () => {
+        const mockStoreCreate = jest.spyOn(mockStore.bills(), "create")
+          .mockImplementationOnce(bill => Promise.reject(new Error("Erreur 404")));
+        
+        const inputExpenseFile = screen.getByTestId("file");
+        const file = new File(['dummy content'], newBill.fileName, {type: 'image/png'})
+        userEvent.upload(inputExpenseFile, file)
+        await new Promise(process.nextTick); // Wait file to be uploaded
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('email', newBill.email);
+  
+        expect(mockStoreCreate).toHaveBeenCalled();
+        expect(console.error.mock.calls[0][0]).toEqual(new Error("Erreur 404"))
+        expect(screen.getAllByText("Envoyer une note de frais")).toBeTruthy();
+      })
+      test("Then submit new Bill to API should print 500 message error and redirect to bills", async () => {
+        const mockStoreCreate = jest.spyOn(mockStore.bills(), "create")
+          .mockImplementationOnce(bill => Promise.reject(new Error("Erreur 500")));
+        
+        const inputExpenseFile = screen.getByTestId("file");
+        const file = new File(['dummy content'], newBill.fileName, {type: 'image/png'})
+        userEvent.upload(inputExpenseFile, file)
+        await new Promise(process.nextTick); // Wait file to be uploaded
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('email', newBill.email);
+  
+        expect(mockStoreCreate).toHaveBeenCalled();
+        expect(console.error.mock.calls[0][0]).toEqual(new Error("Erreur 500"))
+        expect(screen.getAllByText("Envoyer une note de frais")).toBeTruthy();
+
+      })
+    })
+  })
+
   describe("When I am in New Bill Page and submit correctly", () => {
     test("Then the new bill should be uploaded and I should be redirected to Bills listing", async () => {
       document.body.innerHTML = NewBillUI();

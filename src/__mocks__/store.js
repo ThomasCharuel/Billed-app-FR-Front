@@ -5,7 +5,7 @@ const mockedBills = {
     return Promise.resolve(bills)
   },
   create(bill) {
-    return Promise.resolve({fileUrl: newBill.fileUrl, key: '1234'})
+    return Promise.resolve({fileUrl: newBill.fileUrl, key: newBill.id})
   },
   update(bill) {
     return Promise.resolve(newBill)

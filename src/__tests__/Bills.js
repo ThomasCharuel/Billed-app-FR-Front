@@ -58,8 +58,10 @@ describe("Given I am connected as an employee", () => {
 
         const handleClickNewBill = jest.spyOn(billsContainer, "handleClickNewBill")
         const newBillButton = screen.getByTestId('btn-new-bill')
+        newBillButton.addEventListener("click", handleClickNewBill)
         userEvent.click(newBillButton)
-        //expect(handleClickNewBill).toBeCalled()
+
+        expect(handleClickNewBill).toBeCalled()
         await new Promise(process.nextTick);
         expect(screen.getAllByText("Envoyer une note de frais")).toBeTruthy();
       })
@@ -94,7 +96,9 @@ describe("Given I am connected as an employee", () => {
 
         window.$.fn.modal = jest.fn()
 
-        eyeIcons.forEach(eyeIcon => userEvent.click(eyeIcon))
+        eyeIcons.forEach(eyeIcon => {
+          userEvent.click(eyeIcon)
+        })
         expect(handleClickEyeIcon).toHaveBeenCalledTimes(eyeIcons.length)
       })
     })
