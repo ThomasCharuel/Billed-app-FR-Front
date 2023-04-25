@@ -15,31 +15,42 @@ import mockStore from "../__mocks__/store"
 
 jest.mock("../app/store", () => mockStore)
 
+let newBillContainer;
+
+beforeEach(() => {
+  Object.defineProperty(window, 'localStorage', { value: localStorageMock })
+  window.localStorage.setItem('user', JSON.stringify({ type: 'Employee', email: newBill.email }));
+
+  // we have to mock navigation to test it
+  const onNavigate = (pathname) => { document.body.innerHTML = ROUTES({ pathname }) };
+
+  document.body.innerHTML = NewBillUI();
+
+  newBillContainer = new NewBill({
+    document,
+    onNavigate,
+    store: mockStore,
+    localStorage: window.localStorage,
+  });
+});
+
 describe("Given I am connected as an employee", () => {
   describe("When I am on NewBill Page", () => {
-    describe("When I upload a file with the bad format", () => {
+    let handleChangeFile, inputExpenseFile;
+
+    beforeEach(() => {
+      handleChangeFile = jest.spyOn(newBillContainer, 'handleChangeFile').mockImplementation();
+      inputExpenseFile = screen.getByTestId("file");
+      inputExpenseFile.addEventListener("change", handleChangeFile);
+    })
+    afterEach(() => {
+      handleChangeFile.mockRestore();
+    })
+    describe("When I upload a file with bad format", () => {
       test("Then the file can't be uploaded", async () => {
-        Object.defineProperty(window, 'localStorage', { value: localStorageMock })
-        window.localStorage.setItem('user', JSON.stringify({ type: 'Employee', email: newBill.email }));
-
-        // we have to mock navigation to test it
-        const onNavigate = (pathname) => { document.body.innerHTML = ROUTES({ pathname }) };
-        
-        document.body.innerHTML = NewBillUI();
-
-        const newBillContainer = new NewBill({
-          document,
-          onNavigate,
-          store: mockStore,
-          localStorage: window.localStorage,
-        });
-
         const consoleErrorMock = jest.spyOn(console, "error").mockImplementation();
-        const handleChangeFile = jest.spyOn(newBillContainer, 'handleChangeFile').mockImplementation();
 
-        const inputExpenseFile = screen.getByTestId("file");
         const file = new File(['bad file format'], newBill.fileName, {type: 'image/svg+xml'})
-        inputExpenseFile.addEventListener("change", handleChangeFile)
         userEvent.upload(inputExpenseFile, file)
         
         expect(handleChangeFile).toHaveBeenCalled()
@@ -51,25 +62,7 @@ describe("Given I am connected as an employee", () => {
     })
     describe("When I upload a file with the correct format", () => {
       test("Then the file is uploaded", async () => {
-        Object.defineProperty(window, 'localStorage', { value: localStorageMock })
-        window.localStorage.setItem('user', JSON.stringify({ type: 'Employee', email: newBill.email }));
-
-        // we have to mock navigation to test it
-        const onNavigate = (pathname) => { document.body.innerHTML = ROUTES({ pathname }) };
-        
-        document.body.innerHTML = NewBillUI();
-
-        const newBillContainer = new NewBill({
-          document,
-          onNavigate,
-          store: mockStore,
-          localStorage: window.localStorage,
-        });
-
-        const handleChangeFile = jest.spyOn(newBillContainer, 'handleChangeFile').mockImplementation();
-        const inputExpenseFile = screen.getByTestId("file");
         const file = new File(['correct file format'], newBill.fileName, {type: 'image/jpeg'})
-        inputExpenseFile.addEventListener("change", handleChangeFile)
         userEvent.upload(inputExpenseFile, file)
         await new Promise(process.nextTick); // Wait file to be uploaded
 
@@ -83,29 +76,15 @@ describe("Given I am connected as an employee", () => {
 
 // Test d'intégration POST
 describe("Given I am connected as an employee", () => {
-
-  Object.defineProperty(window, 'localStorage', { value: localStorageMock })
-  window.localStorage.setItem('user', JSON.stringify({ type: 'Employee', email: newBill.email }));
-
-  // we have to mock navigation to test it
-  const onNavigate = (pathname) => { document.body.innerHTML = ROUTES({ pathname }) };
-
   describe("When I am in New Bill Page and upload a file correctly", () => {
     test("Then a new bill should be created with the file", async () => {
-      document.body.innerHTML = NewBillUI();
-
-      const newBillContainer = new NewBill({
-        document,
-        onNavigate,
-        store: mockStore,
-        localStorage: window.localStorage,
-      });
-
       const mockStoreCreate = jest.spyOn(mockStore.bills(), 'create');
       const inputExpenseFile = screen.getByTestId("file");
       const file = new File(['dummy content'], newBill.fileName, {type: 'image/png'})
       userEvent.upload(inputExpenseFile, file)
+      
       await new Promise(process.nextTick); // Wait file to be uploaded
+      
       const formData = new FormData();
       formData.append('file', file);
       formData.append('email', newBill.email);
@@ -123,37 +102,22 @@ describe("Given I am connected as an employee", () => {
       expect(screen.getAllByText("Envoyer une note de frais")).toBeTruthy();
     })
     describe("When an error occurs on API", () => {
-      let consoleErrorMock;
-      let newBillContainer;
+      let consoleErrorMock, inputExpenseFile, file;
       
       beforeEach(async () => {
-        document.body.innerHTML = NewBillUI();
-        
-        newBillContainer = new NewBill({
-          document,
-          onNavigate,
-          store: mockStore,
-          localStorage: window.localStorage,
-        });
-        
-        jest.spyOn(mockStore, "bills")
-        consoleErrorMock = jest.spyOn(console, "error")
-          .mockImplementation();
+        consoleErrorMock = jest.spyOn(console, "error").mockImplementation();
+        inputExpenseFile = screen.getByTestId("file");
+        file = new File(['dummy content'], newBill.fileName, {type: 'image/png'})
       })
       afterEach(() => {
-        consoleErrorMock.mockRestore()
+        consoleErrorMock.mockRestore();
       })
       test("Then submit new Bill to API should print 404 message error and redirect to bills", async () => {
         const mockStoreCreate = jest.spyOn(mockStore.bills(), "create")
           .mockImplementationOnce(bill => Promise.reject(new Error("Erreur 404")));
         
-        const inputExpenseFile = screen.getByTestId("file");
-        const file = new File(['dummy content'], newBill.fileName, {type: 'image/png'})
         userEvent.upload(inputExpenseFile, file)
         await new Promise(process.nextTick); // Wait file to be uploaded
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('email', newBill.email);
   
         expect(mockStoreCreate).toHaveBeenCalled();
         expect(console.error.mock.calls[0][0]).toEqual(new Error("Erreur 404"))
@@ -166,13 +130,8 @@ describe("Given I am connected as an employee", () => {
         const mockStoreCreate = jest.spyOn(mockStore.bills(), "create")
           .mockImplementationOnce(bill => Promise.reject(new Error("Erreur 500")));
         
-        const inputExpenseFile = screen.getByTestId("file");
-        const file = new File(['dummy content'], newBill.fileName, {type: 'image/png'})
         userEvent.upload(inputExpenseFile, file)
         await new Promise(process.nextTick); // Wait file to be uploaded
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('email', newBill.email);
   
         expect(mockStoreCreate).toHaveBeenCalled();
         expect(console.error.mock.calls[0][0]).toEqual(new Error("Erreur 500"))
@@ -180,22 +139,11 @@ describe("Given I am connected as an employee", () => {
         expect(newBillContainer.fileUrl).toBeNull();
         expect(newBillContainer.fileName).toBeNull();
         expect(screen.getAllByText("Envoyer une note de frais")).toBeTruthy();
-
       })
     })
   })
-
-  describe("When I am in New Bill Page and submit correctly", () => {
+  describe("When I am in New Bill Page and submit a new bill correctly", () => {
     test("Then the new bill should be uploaded and I should be redirected to Bills listing", async () => {
-      document.body.innerHTML = NewBillUI();
-
-      const newBillContainer = new NewBill({
-        document,
-        onNavigate,
-        store: mockStore,
-        localStorage: window.localStorage,
-      });
-
       // Fill form
       const inputExpenseType = screen.getByTestId("expense-type");
       fireEvent.change(inputExpenseType, { target: { value: newBill.type } });
@@ -255,51 +203,38 @@ describe("Given I am connected as an employee", () => {
       });
       expect(screen.getAllByText("Mes notes de frais")).toBeTruthy();
     })
-  })
-  describe("When an error occurs on API", () => {
-    let consoleErrorMock;
-    beforeEach(async () => {
-      document.body.innerHTML = NewBillUI();
-      
-      const newBillContainer = new NewBill({
-        document,
-        onNavigate,
-        store: mockStore,
-        localStorage: window.localStorage,
-      });
-      
-      jest.spyOn(mockStore, "bills")
-      consoleErrorMock = jest.spyOn(console, "error")
-        .mockImplementation();
-    })
-    afterEach(() => {
-      consoleErrorMock.mockRestore()
-    })
-    test("Then submit new Bill to API should print 404 message error and redirect to bills", async () => {
-      mockStore.bills.mockImplementationOnce(() => {
-        return {
-          update : () =>  {
-            return Promise.reject(new Error("Erreur 404"))
-          }
-        }})
-      const form = screen.getByTestId("form-new-bill");
-      fireEvent.submit(form);
-      await new Promise(process.nextTick);
-      expect(console.error.mock.calls[0][0]).toEqual(new Error("Erreur 404"))
-      expect(screen.getAllByText("Mes notes de frais")).toBeTruthy();
-    })
-    test("Then submit new Bill to API should print 500 message error and redirect to bills", async () => {
-      mockStore.bills.mockImplementationOnce(() => {
-        return {
-          update : () =>  {
-            return Promise.reject(new Error("Erreur 500"))
-          }
-        }})
-      const form = screen.getByTestId("form-new-bill");
-      fireEvent.submit(form);
-      await new Promise(process.nextTick);
-      expect(console.error.mock.calls[0][0]).toEqual(new Error("Erreur 500"))
-      expect(screen.getAllByText("Mes notes de frais")).toBeTruthy();
+    describe("When an error occurs on API", () => {
+      let consoleErrorMock, form;
+      beforeEach(async () => {
+        consoleErrorMock = jest.spyOn(console, "error")
+          .mockImplementation();
+        form = screen.getByTestId("form-new-bill");
+      })
+      afterEach(() => {
+        consoleErrorMock.mockRestore()
+      })
+      test("Then submit new Bill to API should print 404 message error and redirect to bills", async () => {
+        const mockStoreUpdate = jest.spyOn(mockStore.bills(), "update")
+          .mockImplementationOnce(bill => Promise.reject(new Error("Erreur 404")));
+
+        fireEvent.submit(form);
+        await new Promise(process.nextTick);
+
+        expect(mockStoreUpdate).toHaveBeenCalled();
+        expect(console.error.mock.calls[0][0]).toEqual(new Error("Erreur 404"))
+        expect(screen.getAllByText("Mes notes de frais")).toBeTruthy();
+      })
+      test("Then submit new Bill to API should print 500 message error and redirect to bills", async () => {
+        const mockStoreUpdate = jest.spyOn(mockStore.bills(), "update")
+          .mockImplementationOnce(bill => Promise.reject(new Error("Erreur 500")));
+        
+        fireEvent.submit(form);
+        await new Promise(process.nextTick);
+
+        expect(mockStoreUpdate).toHaveBeenCalled();
+        expect(console.error.mock.calls[0][0]).toEqual(new Error("Erreur 500"))
+        expect(screen.getAllByText("Mes notes de frais")).toBeTruthy();
+      })
     })
   })
 })
