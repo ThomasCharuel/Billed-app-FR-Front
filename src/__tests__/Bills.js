@@ -108,15 +108,17 @@ describe("Given I am connected as an employee", () => {
 // Test d'intégration GET
 describe("Given I am connected as an employee", () => {
   describe("When I navigate to Bills Page", () => {
-    test("fetches bills from mock API GET", async () => {
+    beforeEach(() => {
       Object.defineProperty(window, 'localStorage', { value: localStorageMock })
       window.localStorage.setItem('user', JSON.stringify({
-        type: 'Employee'
+        type: 'Employee',
       }))
       const root = document.createElement("div")
       root.setAttribute("id", "root")
       document.body.append(root)
       router()
+    })
+    test("fetches bills from mock API GET", async () => {
       window.onNavigate(ROUTES_PATH.Bills)
       await waitFor(() => screen.getByTestId('tbody'))
       const tbody = screen.getByTestId('tbody')
@@ -125,38 +127,23 @@ describe("Given I am connected as an employee", () => {
       expect(tbody.children.length).toEqual(bills.length)
     })
     describe("When an error occurs on API", () => {
-      beforeEach(() => {
-        jest.spyOn(mockStore, "bills")
-        Object.defineProperty(window, 'localStorage', { value: localStorageMock })
-        window.localStorage.setItem('user', JSON.stringify({
-          type: 'Employee',
-        }))
-        const root = document.createElement("div")
-        root.setAttribute("id", "root")
-        document.body.append(root)
-        router()
-      })
       test("Then fetches bills from an API and fails with 404 message error", async () => {
-        mockStore.bills.mockImplementationOnce(() => {
-          return {
-            list : () =>  {
-              return Promise.reject(new Error("Erreur 404"))
-            }
-          }})
+        const mockStoreBills = jest.spyOn(mockStore.bills(), "list")
+          .mockImplementationOnce(() => Promise.reject(new Error("Erreur 404")))
         window.onNavigate(ROUTES_PATH.Bills)
         await new Promise(process.nextTick);
+        
+        expect(mockStoreBills).toHaveBeenCalled();
         const message = await screen.getByText(/Erreur 404/)
         expect(message).toBeTruthy()
       })
       test("Then fetches messages from an API and fails with 500 message error", async () => {
-        mockStore.bills.mockImplementationOnce(() => {
-          return {
-            list : () =>  {
-              return Promise.reject(new Error("Erreur 500"))
-            }
-          }})
+        const mockStoreBills = jest.spyOn(mockStore.bills(), "list")
+          .mockImplementationOnce(() => Promise.reject(new Error("Erreur 500")))
         window.onNavigate(ROUTES_PATH.Bills)
         await new Promise(process.nextTick);
+
+        expect(mockStoreBills).toHaveBeenCalled();
         const message = await screen.getByText(/Erreur 500/)
         expect(message).toBeTruthy()
       })
