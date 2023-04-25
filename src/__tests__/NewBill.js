@@ -124,10 +124,12 @@ describe("Given I am connected as an employee", () => {
     })
     describe("When an error occurs on API", () => {
       let consoleErrorMock;
+      let newBillContainer;
+      
       beforeEach(async () => {
         document.body.innerHTML = NewBillUI();
         
-        const newBillContainer = new NewBill({
+        newBillContainer = new NewBill({
           document,
           onNavigate,
           store: mockStore,
@@ -155,6 +157,9 @@ describe("Given I am connected as an employee", () => {
   
         expect(mockStoreCreate).toHaveBeenCalled();
         expect(console.error.mock.calls[0][0]).toEqual(new Error("Erreur 404"))
+        expect(newBillContainer.billId).toBeNull();
+        expect(newBillContainer.fileUrl).toBeNull();
+        expect(newBillContainer.fileName).toBeNull();
         expect(screen.getAllByText("Envoyer une note de frais")).toBeTruthy();
       })
       test("Then submit new Bill to API should print 500 message error and redirect to bills", async () => {
@@ -171,6 +176,9 @@ describe("Given I am connected as an employee", () => {
   
         expect(mockStoreCreate).toHaveBeenCalled();
         expect(console.error.mock.calls[0][0]).toEqual(new Error("Erreur 500"))
+        expect(newBillContainer.billId).toBeNull();
+        expect(newBillContainer.fileUrl).toBeNull();
+        expect(newBillContainer.fileName).toBeNull();
         expect(screen.getAllByText("Envoyer une note de frais")).toBeTruthy();
 
       })
